@@ -17,17 +17,19 @@
 
     <!-- Facebook Meta Tags -->
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://theraceboard.com/">
     <meta property="og:title" content="Race to Master Prestige Leaderboard">
     <meta property="og:description"
         content="Track Call of Duty streamers racing to Master Prestige. Real-time level and prestige leaderboard.">
-    <meta property="og:image" content="social.png">
+    <meta property="og:image" content="https://theraceboard.com/social.png">
 
     <!-- Twitter Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://theraceboard.com/">
     <meta name="twitter:title" content="Race to Master Prestige Leaderboard">
     <meta name="twitter:description"
         content="Track Call of Duty streamers racing to Master Prestige. Real-time level and prestige leaderboard.">
-    <meta name="twitter:image" content="social.png">
+    <meta name="twitter:image" content="https://theraceboard.com/social.png">
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -353,6 +355,9 @@
     </div>
 
     <script>
+        // Note: Social image URLs are hardcoded in meta tags above for production domain
+        // This ensures social media crawlers can access them properly
+
         // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDummyKeyReplaceWithYourOwn",
