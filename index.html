@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea" />
+
+    <!-- HTML Meta Tags -->
+    <title>Race to Master Prestige Leaderboard</title>
+    <meta name="description"
+        content="Track Call of Duty streamers racing to Master Prestige. Real-time level and prestige leaderboard.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+    <!-- Facebook Meta Tags -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Race to Master Prestige Leaderboard">
+    <meta property="og:description"
+        content="Track Call of Duty streamers racing to Master Prestige. Real-time level and prestige leaderboard.">
+    <meta property="og:image" content="/social.png">
+
+    <!-- Twitter Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Race to Master Prestige Leaderboard">
+    <meta name="twitter:description"
+        content="Track Call of Duty streamers racing to Master Prestige. Real-time level and prestige leaderboard.">
+    <meta name="twitter:image" content="/social.png">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin: 0;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1em;
+            margin-top: 5px;
+        }
+
+        .refresh-btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .refresh-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .leaderboard-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+        }
+
+        .card-title {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .leaderboard {
+            max-height: 800px;
+            overflow-y: auto;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .leaderboard-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .leaderboard-item.expanded {
+            flex-direction: column;
+            align-items: stretch;
+            background: #fff;
+            border: 2px solid #667eea;
+        }
+
+        .leaderboard-item.rank-1 {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            font-weight: 600;
+        }
+
+        .leaderboard-item.rank-2 {
+            background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
+        }
+
+        .leaderboard-item.rank-3 {
+            background: linear-gradient(135deg, #cd7f32 0%, #e6a85c 100%);
+        }
+
+        .rank-number {
+            font-size: 2em;
+            font-weight: bold;
+            width: 60px;
+            text-align: center;
+            color: #333;
+        }
+
+        .leaderboard-info {
+            flex: 1;
+            margin-left: 20px;
+        }
+
+        .leaderboard-name {
+            font-weight: 600;
+            font-size: 1.3em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .status-dot.online {
+            background: #28a745;
+            box-shadow: 0 0 6px rgba(40, 167, 69, 0.6);
+        }
+
+        .status-dot.offline {
+            background: #dc3545;
+            box-shadow: 0 0 6px rgba(220, 53, 69, 0.6);
+        }
+
+        .leaderboard-level {
+            font-size: 1.1em;
+            opacity: 0.8;
+        }
+
+        .stream-link-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+            margin-left: 10px;
+            margin-right: 20px;
+        }
+
+        .stream-link-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .expand-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            font-style: normal;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .expand-icon:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .leaderboard-item.expanded .expand-icon {
+            background: #667eea;
+            color: white;
+        }
+
+        .expand-content {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .leaderboard-item.expanded .expand-content {
+            display: block;
+        }
+
+        .annotated-frame {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .ocr-logs {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .log-entry.no-detection {
+            border-left-color: #dc3545;
+            opacity: 0.7;
+        }
+
+        .log-timestamp {
+            color: #999;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .log-text {
+            color: #333;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .error {
+            text-align: center;
+            padding: 20px;
+            color: #dc3545;
+            background: #ffe0e0;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🎮 Race to Master Prestige Leaderboard</h1>
+                <p class="subtitle">Call of Duty Level & Prestige Leaderboard</p>
+            </div>
+            <button id="refreshBtn" class="refresh-btn" onclick="refreshLeaderboard()">Refresh</button>
+        </div>
+
+        <div class="leaderboard-card">
+            <div class="card-title">🏆 Leaderboard</div>
+            <div class="leaderboard" id="leaderboard">
+                <div class="empty-state">
+                    <h2>Loading leaderboard...</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDummyKeyReplaceWithYourOwn",
+            authDomain: "racetomasterprestige.firebaseapp.com",
+            projectId: "racetomasterprestige",
+            storageBucket: "racetomasterprestige.firebasestorage.app",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const storage = firebase.storage();
+
+        let expandedStreamId = null;
+        let streamsData = null;
+        
+        // CORS proxy option - set to true if you're getting CORS errors
+        // For production, configure Firebase Storage CORS rules instead
+        const USE_CORS_PROXY = true; // Set to true to use CORS proxy for development
+        const CORS_PROXY = 'https://corsproxy.io/?'; // Public CORS proxy service
+
+        // Get Firebase Storage URL for a file
+        async function getStorageUrl(path) {
+            try {
+                const storageRef = storage.ref(path);
+                const url = await storageRef.getDownloadURL();
+                return url;
+            } catch (error) {
+                console.error(`Error getting URL for ${path}:`, error);
+                // Fallback: Try constructing public URL if file is public
+                // This works if Firebase Storage rules allow public read access
+                const encodedPath = encodeURIComponent(path);
+                const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodedPath}?alt=media`;
+                return publicUrl;
+            }
+        }
+
+        // Fetch with CORS proxy fallback
+        async function fetchWithCorsProxy(url) {
+            try {
+                // Try direct fetch first
+                const response = await fetch(url, {
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return response;
+            } catch (error) {
+                // If CORS error and proxy is enabled, try with proxy
+                if (USE_CORS_PROXY && (error.message.includes('Failed to fetch') || error.name === 'TypeError')) {
+                    console.warn('CORS error detected, trying CORS proxy...');
+                    const proxyUrl = CORS_PROXY + encodeURIComponent(url);
+                    const response = await fetch(proxyUrl, {
+                        mode: 'cors',
+                        cache: 'no-cache'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    return response;
+                }
+                throw error;
+            }
+        }
+
+        // Load streams_data.json from Firebase Storage
+        async function loadStreamsData() {
+            try {
+                const url = await getStorageUrl('streams_data.json');
+                if (!url) {
+                    throw new Error('Could not get URL for streams_data.json');
+                }
+
+                const response = await fetchWithCorsProxy(url);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error loading streams_data.json:', error);
+                
+                // Check if this is a CORS error
+                const isCorsError = error.message.includes('Failed to fetch') || 
+                                   error.message.includes('CORS') ||
+                                   error.name === 'TypeError';
+                
+                if (isCorsError) {
+                    const isFileProtocol = window.location.protocol === 'file:';
+                    if (isFileProtocol) {
+                        throw new Error('CORS Error: Please serve this file through a local web server.');
+                    } else {
+                        throw new Error('CORS Error: Firebase Storage is blocking cross-origin requests. See instructions below.');
+                    }
+                }
+                
+                throw error;
+            }
+        }
+
+        // Calculate rank based on prestige and level
+        function calculateRank(streams) {
+            const sorted = Object.values(streams).sort((a, b) => {
+                if (a.prestige !== b.prestige) {
+                    return b.prestige - a.prestige;
+                }
+                return b.level - a.level;
+            });
+
+            sorted.forEach((stream, index) => {
+                stream.rank = index + 1;
+            });
+
+            return sorted;
+        }
+
+        // Refresh leaderboard
+        async function refreshLeaderboard() {
+            const leaderboard = document.getElementById('leaderboard');
+            const refreshBtn = document.getElementById('refreshBtn');
+            
+            refreshBtn.disabled = true;
+            leaderboard.innerHTML = '<div class="loading"><h2>Loading leaderboard...</h2></div>';
+
+            try {
+                // Load streams_data.json
+                const data = await loadStreamsData();
+                streamsData = data;
+
+                if (!data.streams || Object.keys(data.streams).length === 0) {
+                    leaderboard.innerHTML = '<div class="empty-state"><h2>No streams to rank yet.</h2><p>Check back soon!</p></div>';
+                    refreshBtn.disabled = false;
+                    return;
+                }
+
+                // Calculate ranks
+                const leaderboardEntries = calculateRank(data.streams);
+
+                // Clear leaderboard
+                leaderboard.innerHTML = '';
+
+                // Create leaderboard items
+                for (const entry of leaderboardEntries) {
+                    const item = document.createElement('div');
+                    const rankClass = entry.rank <= 3 ? `rank-${entry.rank}` : '';
+                    const isExpanded = expandedStreamId === entry.id;
+                    item.className = `leaderboard-item ${rankClass} ${isExpanded ? 'expanded' : ''}`;
+                    item.onclick = () => toggleExpand(entry.id);
+
+                    const isOnline = entry.is_active || false;
+                    const streamUrl = entry.stream_url || '';
+                    const normalizedUrl = streamUrl.startsWith('http') ? streamUrl : `https://www.twitch.tv/${streamUrl}`;
+                    const watchButton = isOnline
+                        ? `<a href="${normalizedUrl}" target="_blank" class="stream-link-btn" onclick="event.stopPropagation();">Watch Stream</a>`
+                        : '';
+
+                    item.innerHTML = `
+                        <div style="display: flex; align-items: center; width: 100%;">
+                            <div class="rank-number">#${entry.rank}</div>
+                            <div class="leaderboard-info" style="flex: 1;">
+                                <div class="leaderboard-name">
+                                    <span class="status-dot ${isOnline ? 'online' : 'offline'}" title="${isOnline ? 'Live' : 'Offline'}"></span>
+                                    ${entry.streamer_name || entry.stream_url}
+                                </div>
+                                <div class="leaderboard-level">Prestige ${entry.prestige} | Level ${entry.level}</div>
+                            </div>
+                            ${watchButton}
+                            <div class="expand-icon" title="View details">ℹ</div>
+                        </div>
+                        <div class="expand-content">
+                            <div id="content-${entry.id}">
+                                <p>Loading details...</p>
+                            </div>
+                        </div>
+                    `;
+                    leaderboard.appendChild(item);
+
+                    // Load details if expanded
+                    if (isExpanded) {
+                        loadStreamDetails(entry.id);
+                    }
+                }
+
+                refreshBtn.disabled = false;
+            } catch (error) {
+                console.error('Error refreshing leaderboard:', error);
+                
+                let errorMessage = error.message;
+                let helpText = 'Make sure Firebase Storage is configured correctly and streams_data.json is accessible.';
+                
+                // Check if this is a CORS error
+                const isCorsError = error.message.includes('CORS') || error.message.includes('Failed to fetch');
+                if (isCorsError) {
+                    const isFileProtocol = window.location.protocol === 'file:';
+                    if (isFileProtocol) {
+                        errorMessage = 'CORS Error: Cannot load from file:// protocol';
+                        helpText = `
+                            <strong>Solution: Run a local web server</strong><br><br>
+                            <strong>Option 1 - Python:</strong><br>
+                            <code>python3 -m http.server 8000</code><br>
+                            Then open: <code>http://localhost:8000</code><br><br>
+                            <strong>Option 2 - Node.js:</strong><br>
+                            <code>npx http-server -p 8000</code><br>
+                            Then open: <code>http://localhost:8000</code><br><br>
+                            <strong>Option 3 - PHP:</strong><br>
+                            <code>php -S localhost:8000</code><br>
+                            Then open: <code>http://localhost:8000</code>
+                        `;
+                    } else {
+                        errorMessage = 'CORS Error: Firebase Storage blocking cross-origin requests';
+                        helpText = `
+                            <strong>Solution 1: Enable CORS Proxy (Quick Fix for Development)</strong><br>
+                            In index.html, find <code>const USE_CORS_PROXY = false;</code> and change it to <code>true</code><br><br>
+                            <strong>Solution 2: Configure Firebase Storage CORS (Recommended for Production)</strong><br>
+                            Run this command in your terminal (requires gcloud CLI):<br><br>
+                            <code>gsutil cors set cors.json gs://racetomasterprestige.firebasestorage.app</code><br><br>
+                            Where <code>cors.json</code> contains:<br>
+                            <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">
+[
+  {
+    "origin": ["*"],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]</pre>
+                            <strong>Solution 3: Use Firebase Hosting</strong><br>
+                            Deploy this frontend to Firebase Hosting, which will allow same-origin requests.
+                        `;
+                    }
+                }
+                
+                leaderboard.innerHTML = `
+                    <div class="error">
+                        <h2>Error loading leaderboard</h2>
+                        <p>${errorMessage}</p>
+                        <div style="margin-top: 10px; font-size: 0.9em; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
+                            ${helpText}
+                        </div>
+                    </div>
+                `;
+                refreshBtn.disabled = false;
+            }
+        }
+
+        function toggleExpand(streamId) {
+            if (expandedStreamId === streamId) {
+                expandedStreamId = null;
+            } else {
+                expandedStreamId = streamId;
+                loadStreamDetails(streamId);
+            }
+            refreshLeaderboard();
+        }
+
+        async function loadStreamDetails(streamId) {
+            const contentDiv = document.getElementById(`content-${streamId}`);
+            if (!contentDiv || !streamsData) return;
+
+            contentDiv.innerHTML = '<p class="loading">Loading details...</p>';
+
+            try {
+                const stream = streamsData.streams[streamId.toString()];
+                if (!stream) {
+                    contentDiv.innerHTML = '<p style="color: #dc3545;">Stream data not found</p>';
+                    return;
+                }
+
+                // Get annotated frame
+                let frameHtml = '';
+                if (stream.last_annotated_frame) {
+                    const frameUrl = await getStorageUrl(stream.last_annotated_frame);
+                    if (frameUrl) {
+                        // Use CORS proxy for images if enabled
+                        const imageUrl = USE_CORS_PROXY ? (CORS_PROXY + encodeURIComponent(frameUrl)) : frameUrl;
+                        frameHtml = `<img src="${imageUrl}" alt="Annotated frame" class="annotated-frame" crossorigin="anonymous" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><p style="display:none; color: #999;">Image failed to load</p>`;
+                    } else {
+                        frameHtml = '<p style="color: #999;">No frame available</p>';
+                    }
+                } else {
+                    frameHtml = '<p style="color: #999;">No frame available</p>';
+                }
+
+                // Get OCR logs
+                let logsHtml = '';
+                if (stream.last_ocr_logs && stream.last_ocr_logs.length > 0) {
+                    logsHtml = '<div class="ocr-logs">';
+                    stream.last_ocr_logs.forEach(log => {
+                        const date = new Date(log.timestamp * 1000);
+                        const timeStr = date.toLocaleTimeString();
+                        const logClass = log.detected ? '' : 'no-detection';
+                        logsHtml += `
+                            <div class="log-entry ${logClass}">
+                                <div class="log-timestamp">${timeStr}</div>
+                                <div class="log-text">
+                                    ${log.detected
+                                ? `Detected: Prestige ${log.prestige}, Level ${log.level}<br>OCR: "${log.ocr_text}"`
+                                : 'No detection - OCR did not find prestige/level'}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    logsHtml += '</div>';
+                } else {
+                    logsHtml = '<p style="color: #999;">No OCR logs available yet</p>';
+                }
+
+                contentDiv.innerHTML = `
+                    <h3 style="margin-bottom: 15px;">Latest Detection Frame</h3>
+                    ${frameHtml}
+                    <h3 style="margin-top: 25px; margin-bottom: 15px;">Recent OCR Logs</h3>
+                    ${logsHtml}
+                `;
+            } catch (error) {
+                contentDiv.innerHTML = `<p style="color: #dc3545;">Error loading details: ${error.message}</p>`;
+            }
+        }
+
+        // Initial load
+        refreshLeaderboard();
+    </script>
+</body>
+
+</html>
+
