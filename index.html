@@ -12,21 +12,22 @@
         content="Track Call of Duty streamers racing to Master Prestige. Real-time level and prestige leaderboard.">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
 
     <!-- Facebook Meta Tags -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="Race to Master Prestige Leaderboard">
     <meta property="og:description"
         content="Track Call of Duty streamers racing to Master Prestige. Real-time level and prestige leaderboard.">
-    <meta property="og:image" content="/social.png">
+    <meta property="og:image" content="social.png">
 
     <!-- Twitter Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Race to Master Prestige Leaderboard">
     <meta name="twitter:description"
         content="Track Call of Duty streamers racing to Master Prestige. Real-time level and prestige leaderboard.">
-    <meta name="twitter:image" content="/social.png">
+    <meta name="twitter:image" content="social.png">
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -368,7 +369,7 @@
 
         let expandedStreamId = null;
         let streamsData = null;
-        
+
         // CORS proxy option - set to true if you're getting CORS errors
         // For production, configure Firebase Storage CORS rules instead
         const USE_CORS_PROXY = true; // Set to true to use CORS proxy for development
@@ -398,11 +399,11 @@
                     mode: 'cors',
                     cache: 'no-cache'
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 return response;
             } catch (error) {
                 // If CORS error and proxy is enabled, try with proxy
@@ -413,11 +414,11 @@
                         mode: 'cors',
                         cache: 'no-cache'
                     });
-                    
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
+
                     return response;
                 }
                 throw error;
@@ -437,12 +438,12 @@
                 return data;
             } catch (error) {
                 console.error('Error loading streams_data.json:', error);
-                
+
                 // Check if this is a CORS error
-                const isCorsError = error.message.includes('Failed to fetch') || 
-                                   error.message.includes('CORS') ||
-                                   error.name === 'TypeError';
-                
+                const isCorsError = error.message.includes('Failed to fetch') ||
+                    error.message.includes('CORS') ||
+                    error.name === 'TypeError';
+
                 if (isCorsError) {
                     const isFileProtocol = window.location.protocol === 'file:';
                     if (isFileProtocol) {
@@ -451,7 +452,7 @@
                         throw new Error('CORS Error: Firebase Storage is blocking cross-origin requests. See instructions below.');
                     }
                 }
-                
+
                 throw error;
             }
         }
@@ -476,7 +477,7 @@
         async function refreshLeaderboard() {
             const leaderboard = document.getElementById('leaderboard');
             const refreshBtn = document.getElementById('refreshBtn');
-            
+
             refreshBtn.disabled = true;
             leaderboard.innerHTML = '<div class="loading"><h2>Loading leaderboard...</h2></div>';
 
@@ -542,10 +543,10 @@
                 refreshBtn.disabled = false;
             } catch (error) {
                 console.error('Error refreshing leaderboard:', error);
-                
+
                 let errorMessage = error.message;
                 let helpText = 'Make sure Firebase Storage is configured correctly and streams_data.json is accessible.';
-                
+
                 // Check if this is a CORS error
                 const isCorsError = error.message.includes('CORS') || error.message.includes('Failed to fetch');
                 if (isCorsError) {
@@ -587,7 +588,7 @@
                         `;
                     }
                 }
-                
+
                 leaderboard.innerHTML = `
                     <div class="error">
                         <h2>Error loading leaderboard</h2>
@@ -626,14 +627,50 @@
 
                 // Get annotated frame
                 let frameHtml = '';
-                if (stream.last_annotated_frame) {
-                    const frameUrl = await getStorageUrl(stream.last_annotated_frame);
+
+                // Determine the image path - try new format first, then fallback to JSON path
+                let imagePath = null;
+
+                // Priority 1: New format without timestamp: stream_{id}_annotated.jpg
+                imagePath = `annotated_frames/stream_${streamId}_annotated.jpg`;
+
+                // Priority 2: If JSON has a path, try that (for backward compatibility)
+                // But only if it's different from what we already tried
+                if (stream.last_annotated_frame && stream.last_annotated_frame !== imagePath) {
+                    // Check if old format has timestamp - if so, we'll try both
+                    const oldPath = stream.last_annotated_frame;
+                    const filename = oldPath.split('/').pop();
+                    const hasTimestamp = /^stream_\d+_\d+_annotated\.jpg$/.test(filename);
+
+                    if (hasTimestamp) {
+                        // Old format with timestamp - try new format first, then old as fallback
+                        // We'll try new format first (already set above)
+                    } else {
+                        // No timestamp in old format, use it directly
+                        imagePath = oldPath;
+                    }
+                }
+
+                // If we have a path, try to get the URL
+                if (imagePath) {
+                    const frameUrl = await getStorageUrl(imagePath);
                     if (frameUrl) {
                         // Use CORS proxy for images if enabled
                         const imageUrl = USE_CORS_PROXY ? (CORS_PROXY + encodeURIComponent(frameUrl)) : frameUrl;
-                        frameHtml = `<img src="${imageUrl}" alt="Annotated frame" class="annotated-frame" crossorigin="anonymous" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><p style="display:none; color: #999;">Image failed to load</p>`;
+                        frameHtml = `<img src="${imageUrl}" alt="Annotated frame" class="annotated-frame" crossorigin="anonymous" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';"><p style="display:none; color: #999;">Image failed to load</p>`;
                     } else {
-                        frameHtml = '<p style="color: #999;">No frame available</p>';
+                        // Try fallback to JSON path if new format didn't work
+                        if (stream.last_annotated_frame && stream.last_annotated_frame !== imagePath) {
+                            const fallbackUrl = await getStorageUrl(stream.last_annotated_frame);
+                            if (fallbackUrl) {
+                                const imageUrl = USE_CORS_PROXY ? (CORS_PROXY + encodeURIComponent(fallbackUrl)) : fallbackUrl;
+                                frameHtml = `<img src="${imageUrl}" alt="Annotated frame" class="annotated-frame" crossorigin="anonymous" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';"><p style="display:none; color: #999;">Image failed to load</p>`;
+                            } else {
+                                frameHtml = '<p style="color: #999;">No frame available</p>';
+                            }
+                        } else {
+                            frameHtml = '<p style="color: #999;">No frame available</p>';
+                        }
                     }
                 } else {
                     frameHtml = '<p style="color: #999;">No frame available</p>';
@@ -680,4 +717,3 @@
 </body>
 
 </html>
-
