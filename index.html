@@ -358,6 +358,11 @@
         // Note: Social image URLs are hardcoded in meta tags above for production domain
         // This ensures social media crawlers can access them properly
 
+        // Helper function to format prestige display
+        function formatPrestige(prestige) {
+            return prestige === 20 ? 'Prestige Master' : `Prestige ${prestige}`;
+        }
+
         // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDummyKeyReplaceWithYourOwn",
@@ -526,7 +531,7 @@
                                     <span class="status-dot ${isOnline ? 'online' : 'offline'}" title="${isOnline ? 'Live' : 'Offline'}"></span>
                                     ${entry.streamer_name || entry.stream_url}
                                 </div>
-                                <div class="leaderboard-level">Prestige ${entry.prestige} | Level ${entry.level}</div>
+                                <div class="leaderboard-level">${formatPrestige(entry.prestige)} | Level ${entry.level}</div>
                             </div>
                             ${watchButton}
                             <div class="expand-icon" title="View details">ℹ</div>
@@ -694,7 +699,7 @@
                                 <div class="log-timestamp">${timeStr}</div>
                                 <div class="log-text">
                                     ${log.detected
-                                ? `Detected: Prestige ${log.prestige}, Level ${log.level}<br>OCR: "${log.ocr_text}"`
+                                ? `Detected: ${formatPrestige(log.prestige)}, Level ${log.level}<br>OCR: "${log.ocr_text}"`
                                 : 'No detection - OCR did not find prestige/level'}
                                 </div>
                             </div>
